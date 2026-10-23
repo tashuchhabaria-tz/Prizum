@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory — Manufacturing ERP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================= TOKENS ============================= */
+:root{
+  --ink:#12151C;
+  --ink-2:#454B57;
+  --ink-3:#767F8D;
+  --ink-4:#A2A9B4;
+  --border:#E4E7EC;
+  --border-strong:#D3D8E0;
+  --surface:#FFFFFF;
+  --canvas:#F4F5F7;
+  --canvas-sunk:#ECEEF1;
+  --rail-bg:#12151B;
+  --rail-icon:#8890A0;
+  --rail-icon-active:#F5F6F8;
+  --rail-border:#23262E;
+
+  --primary:#1E4FD9;
+  --primary-600:#173FB0;
+  --primary-50:#EAF0FE;
+  --primary-100:#D7E3FD;
+
+  --success:#15803D;
+  --success-soft:#E7F6EC;
+  --warning:#B45309;
+  --warning-soft:#FDF1DC;
+  --danger:#C22A2A;
+  --danger-soft:#FBEAEA;
+  --danger-strong:#7A1414;
+  --danger-strong-soft:#F3DEDE;
+  --info:#0E7490;
+  --info-soft:#E1F3F6;
+  --purple:#6D28D9;
+  --purple-soft:#EFE9FC;
+
+  --stock-avail:#16A34A;
+  --stock-reserved:#D97706;
+  --stock-transit:#2563EB;
+
+  --radius-sm:6px;
+  --radius:8px;
+  --radius-lg:12px;
+  --shadow-sm:0 1px 2px rgba(18,21,28,.06);
+  --shadow-md:0 4px 12px rgba(18,21,28,.08), 0 1px 2px rgba(18,21,28,.06);
+  --shadow-lg:0 12px 32px rgba(18,21,28,.14), 0 2px 6px rgba(18,21,28,.08);
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  color:var(--ink);
+  background:var(--canvas);
+  font-size:13.5px;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;}
+input,select{font-family:inherit;}
+::selection{background:var(--primary-100);}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+svg{display:block;}
+a{color:inherit;}
+
+/* focus visibility */
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible{
+  outline:2px solid var(--primary); outline-offset:1px;
+}
+
+/* ============================= APP SHELL ============================= */
+.app{display:flex; height:100vh; width:100%; overflow:hidden;}
+
+.rail{
+  width:60px; flex:0 0 60px; background:var(--rail-bg);
+  display:flex; flex-direction:column; align-items:center;
+  padding:16px 0; gap:4px;
+}
+.rail-logo{
+  width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg,var(--primary),#4B7BFF);
+  display:flex; align-items:center; justify-content:center; margin-bottom:20px; flex:0 0 auto;
+}
+.rail-item{
+  width:40px; height:40px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+  color:var(--rail-icon); cursor:pointer; position:relative; border:none; background:transparent;
+}
+.rail-item:hover{background:#1F232B; color:#C6CBD6;}
+.rail-item.active{background:var(--primary); color:var(--rail-icon-active);}
+.rail-item.active::before{
+  content:''; position:absolute; left:-16px; top:50%; transform:translateY(-50%);
+  width:3px; height:18px; border-radius:2px; background:var(--primary);
+}
+.rail-spacer{flex:1;}
+.rail-avatar{
+  width:32px;height:32px;border-radius:50%; background:#3A4152; color:#E4E7F0;
+  display:flex;align-items:center;justify-content:center; font-size:12px; font-weight:700; margin-top:4px;
+}
+
+.main{flex:1; display:flex; flex-direction:column; min-width:0; height:100vh;}
+
+.topbar{
+  height:52px; flex:0 0 52px; background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 20px; gap:10px; justify-content:space-between;
+}
+.crumbs{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-3); font-weight:500;}
+.crumbs b{color:var(--ink); font-weight:600;}
+.topbar-right{display:flex; align-items:center; gap:6px;}
+.icon-btn{
+  width:32px;height:32px;border-radius:7px; border:none; background:transparent; color:var(--ink-3);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.icon-btn:hover{background:var(--canvas-sunk); color:var(--ink);}
+.icon-btn.bordered{border:1px solid var(--border-strong); border-radius:7px; width:32px; height:32px;}
+
+.col-picker-wrap{position:relative;}
+.col-picker-menu{
+  position:absolute; top:38px; right:0; z-index:40; background:#fff; border:1px solid var(--border); border-radius:10px;
+  box-shadow:var(--shadow-lg); padding:8px; min-width:220px; max-height:340px; overflow-y:auto;
+}
+.col-picker-menu .cp-title{
+  font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3); padding:4px 8px 8px;
+}
+.col-picker-menu label{
+  display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:6px; font-size:12.5px; font-weight:500;
+  color:var(--ink); cursor:pointer;
+}
+.col-picker-menu label:hover{background:var(--canvas-sunk);}
+.col-picker-menu input[type="checkbox"]{
+  width:15px; height:15px; accent-color:var(--primary); cursor:pointer; flex:0 0 auto;
+}
+.col-picker-menu label.disabled{color:var(--ink-4); cursor:not-allowed;}
+.col-picker-menu label.disabled input{cursor:not-allowed;}
+.col-picker-menu hr{border:none; border-top:1px solid var(--border); margin:6px 0;}
+.col-picker-menu .cp-reset{
+  width:100%; text-align:left; background:none; border:none; padding:7px 8px; border-radius:6px; font-size:12px;
+  font-weight:600; color:var(--primary); cursor:pointer;
+}
+.col-picker-menu .cp-reset:hover{background:var(--primary-50);}
+
+.content{flex:1; overflow-y:auto; padding:22px 26px 40px; }
+
+.page-head{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:18px; gap:20px; flex-wrap:wrap;}
+.page-head h1{margin:0 0 4px; font-size:21px; font-weight:700; letter-spacing:-0.01em;}
+.page-head p{margin:0; color:var(--ink-3); font-size:13px;}
+
+/* ============================= VIEW SWITCH ============================= */
+.view-switch{
+  display:inline-flex; background:var(--canvas-sunk); padding:3px; border-radius:9px; gap:2px; flex:0 0 auto;
+}
+.view-switch button{
+  border:none; background:transparent; width:32px; height:32px; border-radius:7px; font-size:13px; font-weight:600;
+  color:var(--ink-3); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s;
+}
+.view-switch button.active{background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm);}
+.view-switch button:hover:not(.active){color:var(--ink);}
+
+/* ============================= TABS ============================= */
+.tabs{display:flex; gap:22px; border-bottom:1px solid var(--border); margin-bottom:16px;}
+.tab-btn{
+  border:none; background:transparent; padding:10px 2px 11px; font-size:13.5px; font-weight:600; color:var(--ink-3);
+  cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; display:flex; align-items:center; gap:7px;
+}
+.tab-btn .count{
+  background:var(--canvas-sunk); color:var(--ink-3); font-size:11px; font-weight:700; padding:1px 6px; border-radius:20px;
+}
+.tab-btn.active{color:var(--ink); border-bottom-color:var(--primary);}
+.tab-btn.active .count{background:var(--primary-50); color:var(--primary);}
+
+/* ============================= TOOLBAR ============================= */
+.toolbar{display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+.search-box{
+  position:relative; flex:0 0 auto;
+}
+.search-box input{
+  width:240px; height:32px; border-radius:7px; border:1px solid var(--border-strong); background:var(--surface);
+  padding:0 10px 0 32px; font-size:13px; color:var(--ink);
+}
+.search-box input::placeholder{color:var(--ink-4);}
+.search-box svg{position:absolute; left:9px; top:8px; color:var(--ink-4);}
+
+.select-wrap{position:relative;}
+.select-wrap svg.chev{position:absolute; right:8px; top:9px; pointer-events:none; color:var(--ink-3);}
+select.ctrl{
+  height:32px; border-radius:7px; border:1px solid var(--border-strong); background:var(--surface); color:var(--ink);
+  padding:0 26px 0 10px; font-size:12.5px; font-weight:500; appearance:none; cursor:pointer; min-width:118px;
+}
+select.ctrl:hover{border-color:var(--ink-4);}
+
+.filter-label{
+  display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--ink-3); padding-right:2px;
+}
+
+.toolbar-spacer{flex:1;}
+
+.btn{
+  height:32px; border-radius:7px; border:1px solid var(--border-strong); background:var(--surface); color:var(--ink);
+  padding:0 12px; font-size:12.5px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;
+}
+.btn:hover{background:var(--canvas-sunk);}
+.btn.primary{background:var(--primary); border-color:var(--primary); color:#fff;}
+.btn.primary:hover{background:var(--primary-600);}
+.btn.ghost{border-color:transparent; background:transparent;}
+.btn.ghost:hover{background:var(--canvas-sunk);}
+.btn.sm{height:28px; padding:0 9px; font-size:12px;}
+.btn.danger-text{color:var(--danger);}
+.seg{display:inline-flex; background:var(--canvas-sunk); border-radius:7px; padding:2px; gap:1px;}
+.seg button{border:none; background:transparent; padding:5px 11px; border-radius:5px; font-size:12px; font-weight:600; color:var(--ink-3); cursor:pointer;}
+.seg button.active{background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm);}
+
+/* ============================= BULK BAR ============================= */
+.bulk-bar{
+  display:none; align-items:center; gap:14px; background:var(--primary); color:#fff; border-radius:8px;
+  padding:8px 14px; margin-bottom:12px; font-size:12.5px; font-weight:600;
+}
+.bulk-bar.show{display:flex;}
+.bulk-bar .grow{flex:1;}
+.bulk-bar button{
+  background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); color:#fff; height:28px; border-radius:6px;
+  padding:0 10px; font-weight:600; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:5px;
+}
+.bulk-bar button:hover{background:rgba(255,255,255,.24);}
+.bulk-bar button.clear{background:transparent; border:none; text-decoration:underline; text-underline-offset:2px;}
+
+/* ============================= TABLE ============================= */
+.table-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;
+  box-shadow:var(--shadow-sm);
+}
+.table-scroll{overflow:auto; max-height:calc(100vh - 330px); min-height:220px;}
+table{border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed;}
+thead th{
+  position:sticky; top:0; z-index:3; background:var(--canvas); text-align:left;
+  font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3); font-weight:700;
+  border-bottom:1px solid var(--border); padding:0; height:36px; white-space:nowrap;
+}
+th .th-inner{display:flex; align-items:center; height:36px; padding:0 10px; gap:5px; cursor:pointer; user-select:none; overflow:hidden;}
+th .th-inner:hover{color:var(--ink);}
+th .th-inner.no-sort{cursor:default;}
+th .th-inner.no-sort:hover{color:var(--ink-3);}
+th .sort-ic{opacity:0; color:var(--ink-4); flex:0 0 auto;}
+th.sorted .sort-ic{opacity:1; color:var(--primary);}
+th .resizer{
+  position:absolute; right:0; top:0; width:6px; height:36px; cursor:col-resize; z-index:4;
+}
+th .resizer:hover{background:var(--primary-100);}
+th{position:sticky;}
+th{border-right:1px solid transparent;}
+
+td{
+  padding:0 10px; height:52px; border-bottom:1px solid var(--border); font-size:13px; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;
+}
+tbody tr{background:var(--surface);}
+tbody tr:hover td{background:#FAFBFC;}
+tbody tr.selected td{background:var(--primary-50);}
+tbody tr:last-child td{border-bottom:none;}
+
+th:first-child .th-inner, td:first-child{padding-left:14px;}
+td.sticky-col, th.sticky-col{position:sticky; left:0; z-index:2; background:inherit;}
+th.sticky-col{background:var(--canvas); z-index:5;}
+tbody tr:hover td.sticky-col{background:#FAFBFC;}
+tbody tr.selected td.sticky-col{background:var(--primary-50);}
+
+.checkbox{
+  width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border-strong); background:#fff;
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;
+}
+.checkbox.checked{background:var(--primary); border-color:var(--primary); color:#fff;}
+.checkbox.indeterminate{background:var(--primary); border-color:var(--primary);}
+td.icon-cell{padding:0 !important; text-align:center; overflow:visible !important; text-overflow:clip !important;}
+
+.prod-cell{display:flex; align-items:center; gap:10px;}
+.prod-thumb{
+  width:32px; height:32px; border-radius:7px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+  color:#fff;
+}
+.prod-name-wrap{min-width:0;}
+.prod-name{font-weight:600; font-size:13px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.prod-sub{font-size:11.5px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:0 1 auto;}
+.prod-sub-row{display:flex; align-items:center; gap:6px; min-width:0;}
+.track-tag{
+  flex:0 0 auto; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:1.5px 6px;
+  border-radius:20px; white-space:nowrap;
+}
+.track-tag.serialized{background:var(--primary-50); color:var(--primary);}
+.track-tag.unserialized{background:var(--canvas-sunk); color:var(--ink-3);}
+
+.stock-cell{display:flex; flex-direction:column; gap:4px; width:100%;}
+.stock-num{font-weight:600; font-size:13px;}
+.stock-bar{height:6px; border-radius:3px; background:var(--canvas-sunk); overflow:hidden; width:82px; display:flex;}
+.stock-bar > span{height:100%; display:block;}
+
+.stock-legend{
+  display:flex; align-items:center; gap:14px; margin:-2px 0 12px; padding:7px 12px; background:var(--canvas-sunk);
+  border-radius:7px; font-size:11.5px; color:var(--ink-3); width:fit-content;
+}
+.legend-title{font-weight:700; color:var(--ink-2);}
+.legend-item{display:flex; align-items:center; gap:5px; font-weight:600; color:var(--ink-2);}
+.legend-dot{width:8px; height:8px; border-radius:50%; flex:0 0 auto;}
+
+/* toggle switch (e.g. In Transit) */
+.toggle-switch{display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;}
+.toggle-switch input{display:none;}
+.toggle-track{width:34px; height:19px; border-radius:20px; background:var(--border-strong); position:relative; transition:background .15s; flex:0 0 auto;}
+.toggle-thumb{position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%; background:#fff; box-shadow:var(--shadow-sm); transition:transform .15s;}
+.toggle-switch input:checked + .toggle-track{background:var(--primary);}
+.toggle-switch input:checked + .toggle-track .toggle-thumb{transform:translateX(15px);}
+.toggle-label{font-size:12.5px; font-weight:600; color:var(--ink-2);}
+
+/* info icon next to price */
+.info-ic{color:var(--ink-4); display:inline-flex; vertical-align:middle; cursor:help; margin-left:1px;}
+.info-ic:hover{color:var(--primary);}
+
+.video-link{display:inline-flex; align-items:center; gap:5px; color:var(--primary); font-weight:600; font-size:12.5px; text-decoration:none;}
+.video-link:hover{text-decoration:underline;}
+
+.desc-clip{display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;}
+
+/* nested breakdown tables (Site level, Serial level) */
+.nested-wrap{padding:10px 14px 14px 66px; background:var(--canvas);}
+.nested-table{width:100%; border-collapse:separate; border-spacing:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; table-layout:auto;}
+.site-table, .serial-table{table-layout:fixed;}
+.site-table td, .serial-table td, .site-table th, .serial-table th{overflow:hidden; text-overflow:ellipsis;}
+.nested-table thead th{
+  position:static; background:var(--primary-50); color:var(--primary-600); font-size:10.5px; text-transform:uppercase;
+  letter-spacing:.03em; font-weight:700; padding:8px 10px; height:auto; border-bottom:1px solid var(--border); white-space:nowrap;
+}
+.nested-table tbody td{
+  padding:9px 10px; height:auto; font-size:12.5px; border-bottom:1px solid var(--border); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; max-width:220px;
+}
+.nested-table tbody tr:last-child td{border-bottom:none;}
+.nested-table tbody tr:hover td{background:#FAFBFC;}
+.site-table thead th:first-child, .site-table tbody td:first-child{padding-left:12px;}
+.serial-wrap{padding:8px 10px 10px 32px; background:var(--canvas-sunk);}
+.serial-table{font-size:12px;}
+.serial-link{color:var(--primary); font-weight:600; text-decoration:none; font-family:var(--mono); font-size:12px;}
+.serial-link:hover{text-decoration:underline;}
+.customer-tag{color:var(--primary); font-weight:700; font-size:11.5px;}
+
+/* price breakdown popover (shown on hover of the info icon beside Price) */
+.price-tooltip{
+  position:fixed; z-index:80; background:var(--surface); border-radius:12px; box-shadow:var(--shadow-lg);
+  border:1px solid var(--border); overflow:hidden; width:max-content; max-width:220px; pointer-events:none;
+}
+.price-tooltip table{width:auto; border-collapse:collapse;}
+.price-tooltip thead th{
+  position:static; background:var(--canvas-sunk); color:var(--ink-2); text-transform:none; letter-spacing:0;
+  font-size:12.5px; font-weight:700; padding:8px 14px; height:auto; border-bottom:none; text-align:left; white-space:nowrap;
+}
+.price-tooltip tbody td{
+  padding:8px 14px; height:auto; font-size:13px; font-weight:500; color:var(--ink); white-space:nowrap;
+  border-bottom:1px solid var(--border); overflow:visible;
+}
+.price-tooltip tbody tr:last-child td{border-bottom:none;}
+.price-tooltip tbody td.price-val{font-family:var(--mono); font-weight:600; text-align:right;}
+
+.badge{
+  display:inline-flex; align-items:center; gap:5px; padding:3px 9px 3px 7px; border-radius:20px; font-size:11.5px;
+  font-weight:700; white-space:nowrap;
+}
+.badge .dot{width:6px; height:6px; border-radius:50%; flex:0 0 auto;}
+.badge.healthy{background:var(--success-soft); color:var(--success);}
+.badge.healthy .dot{background:var(--success);}
+.badge.low{background:var(--warning-soft); color:var(--warning);}
+.badge.low .dot{background:var(--warning);}
+.badge.out{background:var(--danger-soft); color:var(--danger);}
+.badge.out .dot{background:var(--danger);}
+.badge.reserved{background:var(--purple-soft); color:var(--purple);}
+.badge.reserved .dot{background:var(--purple);}
+.badge.transit{background:var(--info-soft); color:var(--info);}
+.badge.transit .dot{background:var(--info);}
+.badge.critical{background:var(--danger-soft); color:var(--danger);}
+.badge.critical .dot{background:var(--danger);}
+.badge.stockout{background:var(--danger-strong-soft); color:var(--danger-strong);}
+.badge.stockout .dot{background:var(--danger-strong);}
+
+.row-actions{display:flex; align-items:center; gap:2px;}
+.row-actions .icon-btn{width:28px; height:28px; border-radius:6px;}
+
+/* expandable rows (forecast) */
+.expand-btn{
+  width:22px; height:22px; border-radius:5px; border:none; background:transparent; color:var(--ink-3);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto; transition:transform .15s;
+}
+.expand-btn:hover{background:var(--canvas-sunk);}
+.expand-btn.open{transform:rotate(90deg); color:var(--primary);}
+
+.detail-row td{padding:0; height:auto; background:var(--canvas); border-bottom:1px solid var(--border);}
+.detail-wrap{padding:18px 20px 22px 46px;}
+.detail-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+.detail-panel{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:13px 14px;
+}
+.detail-panel h4{
+  margin:0 0 10px; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3);
+  display:flex; align-items:center; gap:6px; font-weight:700;
+}
+.detail-panel h4 svg{color:var(--ink-4);}
+.mini-table{width:100%; border-collapse:collapse; font-size:12px;}
+.mini-table th{position:static; background:none; border:none; text-align:left; color:var(--ink-4); font-weight:600; padding:0 0 5px; height:auto; text-transform:none; letter-spacing:0; font-size:11px;}
+.mini-table td{border:none; padding:4px 0; height:auto; font-size:12px; white-space:normal;}
+.mini-table tr+tr td{border-top:1px dashed var(--border);}
+.kv-row{display:flex; justify-content:space-between; padding:4px 0; font-size:12px; border-bottom:1px dashed var(--border);}
+.kv-row:last-child{border-bottom:none;}
+.kv-row span:first-child{color:var(--ink-3);}
+.kv-row span:last-child{font-weight:600;}
+.sparkbar-row{display:flex; align-items:flex-end; gap:4px; height:52px; margin-top:2px;}
+.sparkbar-row .bar{flex:1; background:var(--primary-100); border-radius:2px 2px 0 0; position:relative;}
+.sparkbar-row .bar span{position:absolute; bottom:-16px; left:0; right:0; text-align:center; font-size:9.5px; color:var(--ink-4);}
+.po-item{display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--border); font-size:12px;}
+.po-item:last-child{border-bottom:none;}
+.po-item .po-id{font-weight:600; font-family:var(--mono);}
+
+/* ============================= PAGINATION ============================= */
+.pagination{
+  display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-top:1px solid var(--border);
+  font-size:12.5px; color:var(--ink-3);
+}
+.pagination .pg-right{display:flex; align-items:center; gap:14px;}
+.pg-btns{display:flex; align-items:center; gap:3px;}
+.pg-btns button{
+  width:26px; height:26px; border-radius:6px; border:1px solid var(--border-strong); background:#fff; color:var(--ink-2);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.pg-btns button:disabled{opacity:.4; cursor:not-allowed;}
+.pg-btns button:hover:not(:disabled){background:var(--canvas-sunk);}
+.pg-numbers{display:flex; align-items:center; gap:3px; margin:0 2px;}
+.pg-numbers button{
+  min-width:26px; height:26px; border-radius:6px; border:1px solid transparent; background:transparent; color:var(--ink-2);
+  cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; padding:0 4px;
+}
+.pg-numbers button:hover{background:var(--canvas-sunk);}
+.pg-numbers button.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+.pg-numbers span.pg-ellipsis{color:var(--ink-4); font-size:12px; padding:0 2px;}
+
+/* ============================= SUMMARY CARDS ============================= */
+.summary-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:16px;}
+.summary-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:13px 15px;
+  box-shadow:var(--shadow-sm);
+}
+.summary-card .s-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+.summary-card .s-label{font-size:11.5px; color:var(--ink-3); font-weight:600;}
+.summary-card .s-icon{width:26px;height:26px;border-radius:7px; display:flex; align-items:center; justify-content:center;}
+.summary-card .s-value{font-size:21px; font-weight:800; font-family:var(--mono); letter-spacing:-0.02em;}
+.summary-card .s-sub{font-size:11px; color:var(--ink-3); margin-top:3px;}
+.summary-card .s-sub.up{color:var(--success);}
+.summary-card .s-sub.down{color:var(--danger);}
+
+/* ============================= MENU / POPOVER ============================= */
+.row-menu{
+  position:fixed; z-index:60; background:#fff; border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow-lg);
+  padding:5px; min-width:172px; overflow:visible;
+}
+.row-menu button{
+  width:100%; text-align:left; background:none; border:none; padding:8px 9px; border-radius:6px; font-size:12.5px;
+  font-weight:500; color:var(--ink); display:flex; align-items:center; gap:8px; cursor:pointer;
+}
+.row-menu button:hover{background:var(--canvas-sunk);}
+.row-menu button.danger{color:var(--danger);}
+.row-menu hr{border:none; border-top:1px solid var(--border); margin:4px 0;}
+.row-menu button.menu-row-item{justify-content:space-between; color:var(--ink-2);}
+.row-menu .menu-icon{color:var(--primary); display:inline-flex; flex:0 0 auto;}
+.row-menu .has-sub{position:relative;}
+.row-menu .has-sub > .submenu{
+  display:none; position:absolute; top:-6px; left:100%; margin-left:4px; background:#fff; border:1px solid var(--border);
+  border-radius:9px; box-shadow:var(--shadow-lg); padding:5px; min-width:150px; z-index:61;
+}
+.row-menu .has-sub.flip-left > .submenu{ left:auto; right:100%; margin-left:0; margin-right:4px; }
+.row-menu .has-sub:hover > button{background:var(--canvas-sunk);}
+.row-menu .has-sub:hover > .submenu{display:block;}
+
+/* ============================= CARD VIEW ============================= */
+.card-toolbar{display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+.cart-btn{
+  position:relative; height:32px; padding:0 12px 0 10px; border-radius:7px; border:1px solid var(--border-strong);
+  background:#fff; display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; cursor:pointer; color:var(--ink);
+}
+.cart-btn.has-items{border-color:var(--primary); color:var(--primary); background:var(--primary-50);}
+.cart-badge{
+  background:var(--primary); color:#fff; font-size:10.5px; font-weight:700; border-radius:20px; min-width:16px; height:16px;
+  display:flex; align-items:center; justify-content:center; padding:0 4px;
+}
+
+.card-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(228px,1fr)); gap:14px;}
+.card-grid.compact{grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px;}
+
+.p-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;
+  box-shadow:var(--shadow-sm); display:flex; flex-direction:column; position:relative; transition:box-shadow .15s, transform .1s;
+}
+.p-card:hover{box-shadow:var(--shadow-md);}
+.p-card.selected{outline:2px solid var(--primary); outline-offset:-1px;}
+.p-thumb{
+  height:118px; display:flex; align-items:center; justify-content:center; position:relative; flex:0 0 auto;
+}
+.card-grid.compact .p-thumb{height:84px;}
+.p-thumb svg{width:38px; height:38px; color:rgba(255,255,255,.92);}
+.p-status-dot{
+  position:absolute; top:9px; left:9px; padding:3px 8px; border-radius:20px; font-size:10px; font-weight:700;
+  background:rgba(255,255,255,.92); display:flex; align-items:center; gap:4px;
+}
+.p-status-dot .dot{width:6px;height:6px;border-radius:50%;}
+.p-select-check{
+  position:absolute; top:9px; right:9px; width:22px; height:22px; border-radius:6px; background:rgba(255,255,255,.92);
+  border:1.5px solid rgba(255,255,255,.9); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-3);
+}
+.p-select-check.on{background:var(--primary); border-color:var(--primary); color:#fff;}
+.p-body{padding:11px 12px 12px; display:flex; flex-direction:column; gap:6px; flex:1;}
+.card-grid.compact .p-body{padding:8px 9px 9px; gap:4px;}
+.p-cat{font-size:10.5px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em;}
+.p-name{font-size:13.5px; font-weight:700; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+.card-grid.compact .p-name{font-size:12.5px; -webkit-line-clamp:1;}
+.p-sku{font-size:11px; color:var(--ink-3); font-family:var(--mono);}
+.p-meta{display:flex; align-items:center; justify-content:space-between; font-size:11.5px; color:var(--ink-3); margin-top:2px;}
+.p-meta .stock-val{font-weight:700; color:var(--ink); font-family:var(--mono);}
+.p-foot{display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:8px; gap:8px;}
+.p-price{font-size:15px; font-weight:800; font-family:var(--mono);}
+.p-add-btn{
+  height:30px; border-radius:7px; border:1px solid var(--border-strong); background:#fff; color:var(--ink);
+  font-size:11.5px; font-weight:700; cursor:pointer; padding:0 10px; display:flex; align-items:center; gap:5px;
+}
+.p-add-btn:hover{border-color:var(--primary); color:var(--primary);}
+.p-add-btn.added{background:var(--success-soft); border-color:var(--success); color:var(--success);}
+
+.cart-floater{
+  position:fixed; bottom:22px; left:50%; transform:translateX(calc(-50% + 30px)); background:var(--ink); color:#fff;
+  border-radius:12px; padding:10px 10px 10px 18px; display:flex; align-items:center; gap:16px; box-shadow:var(--shadow-lg);
+  z-index:50; opacity:0; pointer-events:none; transition:opacity .18s, transform .18s;
+}
+.cart-floater.show{opacity:1; pointer-events:auto; transform:translateX(calc(-50% + 30px)) translateY(0);}
+.cart-floater .cf-text{font-size:13px; font-weight:600;}
+.cart-floater .cf-text b{font-family:var(--mono);}
+.cart-floater .cf-actions{display:flex; gap:8px;}
+.cart-floater button.primary{background:var(--primary); border:none; color:#fff; height:34px; padding:0 14px; border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer;}
+.cart-floater button.clear{background:transparent; border:none; color:#B7BCC7; height:34px; padding:0 6px; font-weight:600; font-size:12.5px; cursor:pointer;}
+
+.hidden{display:none !important;}
+.empty-state{padding:60px 20px; text-align:center; color:var(--ink-3);}
+.empty-state svg{margin:0 auto 12px; color:var(--ink-4);}
+.empty-state h3{margin:0 0 4px; color:var(--ink); font-size:14px;}
+.empty-state p{margin:0; font-size:12.5px;}
+
+.tooltip-note{font-size:11px; color:var(--ink-3);}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ICON RAIL -->
+  <aside class="rail">
+    <div class="rail-logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 7L12 12L21 7M12 12V22" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    </div>
+    <button class="rail-item" title="Dashboard">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    </button>
+    <button class="rail-item active" title="Inventory">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8L12 3L3 8V16L12 21L21 16V8Z"/><path d="M3 8L12 13L21 8M12 13V21"/></svg>
+    </button>
+    <button class="rail-item" title="Production">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.5.6.9.6H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button class="rail-item" title="Orders">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
+    </button>
+    <button class="rail-item" title="Suppliers">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="1.8"/><circle cx="18.5" cy="18.5" r="1.8"/></svg>
+    </button>
+    <button class="rail-item" title="Reports">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+    </button>
+    <div class="rail-spacer"></div>
+    <button class="rail-item" title="Settings">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.5.6.9.6H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <div class="rail-avatar">JD</div>
+  </aside>
+
+  <div class="main">
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="crumbs">
+        <span>Manufacturing ERP</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        <b>Inventory</b>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </button>
+        <button class="icon-btn" title="Notifications">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="icon-btn" title="Help">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4"/><path d="M12 17h.01"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <h1>Inventory</h1>
+          <p>Track stock levels, forecast demand, and manage site allocation across all facilities.</p>
+        </div>
+        <div class="view-switch" id="viewSwitch">
+          <button class="active" data-view="list" title="List View">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+          <button data-view="card" title="Card View">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ======================= LIST VIEW ======================= -->
+      <div id="listView">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="inventory">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3L3 8V16L12 21L21 16V8Z"/><path d="M3 8L12 13L21 8M12 13V21"/></svg>
+            Inventory <span class="count" id="invCount">24</span>
+          </button>
+          <button class="tab-btn" data-tab="forecast">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 6-7"/></svg>
+            Forecasting <span class="count" id="fcCount">24</span>
+          </button>
+        </div>
+
+        <!-- ---- INVENTORY TAB ---- -->
+        <div id="inventoryPanel">
+          <div class="toolbar">
+            <div class="search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="invSearch" placeholder="Search product or SKU…">
+            </div>
+            <div class="filter-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+              Filters
+            </div>
+            <div class="select-wrap">
+              <select class="ctrl" id="invCategory"><option value="">All Categories</option></select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap">
+              <select class="ctrl" id="invSite"><option value="">All Sites</option></select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap">
+              <select class="ctrl" id="invStatus">
+                <option value="">All Statuses</option>
+                <option value="Healthy">Healthy</option>
+                <option value="Low Stock">Low Stock</option>
+                <option value="Out of Stock">Out of Stock</option>
+                <option value="Reserved">Reserved</option>
+                <option value="In Transit">In Transit</option>
+              </select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap">
+              <select class="ctrl" id="invTracking">
+                <option value="">All Types</option>
+                <option value="Serialized">Serialized</option>
+                <option value="Unserialized">Unserialized</option>
+              </select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="toolbar-spacer"></div>
+            <div class="col-picker-wrap">
+              <button class="icon-btn bordered" id="colPickerBtn" title="Choose columns">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+              </button>
+              <div class="col-picker-menu hidden" id="colPickerMenu"></div>
+            </div>
+            <button class="btn" id="invExportBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+              Export
+            </button>
+            <button class="btn primary" id="addProductBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+              Add Product
+            </button>
+          </div>
+
+          <div class="bulk-bar" id="invBulkBar">
+            <span id="invBulkCount">0 selected</span>
+            <div class="grow"></div>
+            <button><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export selected</button>
+            <button><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3L3 8V16L12 21L21 16V8Z"/></svg>Change site</button>
+            <button><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>Delete</button>
+            <button class="clear" id="invClearSel">Clear selection</button>
+          </div>
+
+          <div class="table-card">
+            <div class="table-scroll">
+              <table id="invTable">
+                <colgroup id="invColgroup">
+                  <col style="width:32px">
+                  <col style="width:34px">
+                  <col style="width:224px">
+                  <col style="width:112px">
+                  <col style="width:100px">
+                  <col style="width:110px">
+                  <col style="width:90px">
+                  <col style="width:90px">
+                  <col style="width:80px">
+                  <col style="width:106px">
+                  <col style="width:110px">
+                  <col style="width:104px">
+                  <col style="width:112px">
+                  <col style="width:210px">
+                  <col style="width:120px">
+                  <col style="width:96px">
+                </colgroup>
+                <thead>
+                  <tr id="invHeadRow"></tr>
+                </thead>
+                <tbody id="invBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination">
+              <span id="invPageInfo">Showing 1–10 of 24</span>
+              <div class="pg-right">
+                <div class="select-wrap">
+                  <select class="ctrl" id="invPageSize" style="min-width:56px; padding:0 20px 0 8px;">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+                  <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <div class="pg-btns">
+                  <button id="invPrev" title="Previous"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                  <div class="pg-numbers" id="invPgNumbers"></div>
+                  <button id="invNext" title="Next"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- FORECASTING TAB ---- -->
+        <div id="forecastPanel" class="hidden">
+          <div class="summary-grid" id="fcSummaryGrid"></div>
+
+          <div class="toolbar">
+            <div class="seg" id="fcPeriodSeg">
+              <button data-period="30" class="active">30d</button>
+              <button data-period="60">60d</button>
+              <button data-period="90">90d</button>
+            </div>
+            <div class="search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="fcSearch" placeholder="Search product or SKU…">
+            </div>
+            <div class="select-wrap">
+              <select class="ctrl" id="fcSupplier"><option value="">All Suppliers</option></select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap">
+              <select class="ctrl" id="fcSite"><option value="">All Sites</option></select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap">
+              <select class="ctrl" id="fcCategory"><option value="">All Categories</option></select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="toolbar-spacer"></div>
+            <button class="btn" id="fcExportBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+              Export
+            </button>
+          </div>
+
+          <div class="table-card">
+            <div class="table-scroll">
+              <table id="fcTable">
+                <colgroup>
+                  <col style="width:44px">
+                  <col style="width:236px">
+                  <col style="width:100px">
+                  <col style="width:108px">
+                  <col style="width:126px">
+                  <col style="width:126px">
+                  <col style="width:122px">
+                  <col style="width:106px">
+                  <col style="width:116px">
+                  <col style="width:150px">
+                  <col style="width:150px">
+                  <col style="width:96px">
+                  <col style="width:164px">
+                  <col style="width:150px">
+                  <col style="width:110px">
+                </colgroup>
+                <thead><tr id="fcHeadRow"></tr></thead>
+                <tbody id="fcBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================= CARD VIEW ======================= -->
+      <div id="cardView" class="hidden">
+        <div class="card-toolbar">
+          <div class="search-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="cardSearch" placeholder="Search product or SKU…">
+          </div>
+          <div class="filter-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+            Filters
+          </div>
+          <div class="select-wrap">
+            <select class="ctrl" id="cardCategory"><option value="">All Categories</option></select>
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="select-wrap">
+            <select class="ctrl" id="cardSite"><option value="">All Sites</option></select>
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="select-wrap">
+            <select class="ctrl" id="cardStatus">
+              <option value="">All Statuses</option>
+              <option value="Healthy">Healthy</option>
+              <option value="Low Stock">Low Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
+              <option value="Reserved">Reserved</option>
+              <option value="In Transit">In Transit</option>
+            </select>
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="filter-label">Sort</div>
+          <div class="select-wrap">
+            <select class="ctrl" id="cardSort" style="min-width:150px;">
+              <option value="name-asc">Name (A–Z)</option>
+              <option value="name-desc">Name (Z–A)</option>
+              <option value="stock-desc">Stock (High–Low)</option>
+              <option value="stock-asc">Stock (Low–High)</option>
+              <option value="price-desc">Price (High–Low)</option>
+              <option value="price-asc">Price (Low–High)</option>
+            </select>
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="toolbar-spacer"></div>
+          <div class="seg" id="densitySeg">
+            <button data-density="comfortable" class="active" title="Comfortable">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </button>
+            <button data-density="compact" title="Compact">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="4" height="4"/><rect x="10" y="3" width="4" height="4"/><rect x="17" y="3" width="4" height="4"/><rect x="3" y="10" width="4" height="4"/><rect x="10" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4"/><rect x="3" y="17" width="4" height="4"/><rect x="10" y="17" width="4" height="4"/><rect x="17" y="17" width="4" height="4"/></svg>
+            </button>
+          </div>
+          <button class="cart-btn" id="cartBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            Cart <span class="cart-badge" id="cartBadge">0</span>
+          </button>
+        </div>
+
+        <div class="card-grid" id="cardGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="price-tooltip hidden" id="priceTooltip"></div>
+
+<div class="row-menu hidden" id="rowMenu"></div>
+
+<div class="cart-floater" id="cartFloater">
+  <div class="cf-text"><b id="cfCount">0</b> items selected &nbsp;·&nbsp; <b id="cfTotal">$0</b> total</div>
+  <div class="cf-actions">
+    <button class="clear" id="cfClear">Clear</button>
+    <button class="primary" id="cfCreate">Create Purchase Order</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ICONS
+============================================================ */
+const ic = {
+  edit:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>',
+  eye:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  more:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg>',
+  copy:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  adjust:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-11M12 6V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>',
+  trash:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>',
+  po:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18M9 11h6M9 15h6"/></svg>',
+  history:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>',
+  trend:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>',
+  cart:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+  truck:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="1.8"/><circle cx="18.5" cy="18.5" r="1.8"/></svg>',
+  supplier:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M14 9h1M14 13h1M10 21v-4h4v4"/></svg>',
+  calc:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8L12 3L3 8V16L12 21L21 16V8Z"/><path d="M3 8L12 13L21 8M12 13V21"/></svg>',
+  bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2 3 14h7l-1 8 11-14h-7l0-6Z"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.5.6.9.6H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  layers:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>',
+  package:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8L12 3L3 8V16L12 21L21 16V8Z"/><path d="M3 8L12 13L21 8M12 13V21"/></svg>',
+  droplet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5s7 8 7 12.5a7 7 0 0 1-14 0c0-4.5 7-12.5 7-12.5Z"/></svg>',
+  wrench:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.6l-6.8 6.8 2.9 2.9 6.8-6.8a4 4 0 0 0 5.6-5.6l-2.5 2.5-2.9-.9-.9-2.9 2.5-2.5Z"/></svg>',
+  wrenchSm:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.6l-6.8 6.8 2.9 2.9 6.8-6.8a4 4 0 0 0 5.6-5.6l-2.5 2.5-2.9-.9-.9-2.9 2.5-2.5Z"/></svg>',
+  barcodeTag:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8v8M10 8v8M13 8v3M13 14v2M16 8v8"/></svg>',
+  check:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>',
+  minus:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg>',
+  sortIcon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>',
+  sortUp:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M7 14l5-5 5 5"/></svg>',
+  sortDown:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M7 10l5 5 5-5"/></svg>',
+  chevRight:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg>',
+  chevRightSm:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg>',
+  inbox:'<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>',
+  infoDot:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5"/><path d="M12 8h.01"/></svg>',
+  play:'<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M6 4l14 8-14 8V4z"/></svg>',
+};
+const CAT_ICON = {
+  'Raw Materials': ic.layers, 'Components': ic.bolt, 'Sub-Assemblies': ic.gear,
+  'Finished Goods': ic.package, 'Packaging': ic.box, 'Consumables': ic.droplet
+};
+const CAT_COLOR = {
+  'Raw Materials':'#6B7280', 'Components':'#1E4FD9', 'Sub-Assemblies':'#7C3AED',
+  'Finished Goods':'#0E7490', 'Packaging':'#B45309', 'Consumables':'#15803D'
+};
+
+/* ============================================================
+   DATA
+============================================================ */
+const CATEGORIES = ['Raw Materials','Components','Sub-Assemblies','Finished Goods','Packaging','Consumables'];
+const WAREHOUSES = ['Main Warehouse – Detroit','East Distribution Center','West Coast Facility','Overflow Storage B'];
+const SITE_CODES = [10,20,30,40,50,60];
+const SUPPLIERS = ['Titan Steel Co.','Apex Fasteners','Nova Electronics','Summit Packaging','Global Bearings Inc.','Precision Motors Ltd.'];
+const SERIAL_PREFIX = ['L','H','A','E','C','M'];
+
+const NAMES = [
+  ['M8 Hex Bolt 40mm','Components'],['Steel Sheet 4×8 Gauge 16','Raw Materials'],
+  ['Brushless DC Motor 24V','Components'],['Aluminum Bracket Type-A','Sub-Assemblies'],
+  ['Ball Bearing 6205-2RS','Components'],['Circuit Board Assembly Rev C','Sub-Assemblies'],
+  ['Corrugated Shipping Box L','Packaging'],['Hydraulic Cylinder 50mm','Finished Goods'],
+  ['Rubber Gasket Seal Kit','Consumables'],['PLC Controller Module X200','Components'],
+  ['Conveyor Belt Roller','Sub-Assemblies'],['Powder Coat Paint – Matte Black','Consumables'],
+  ['Stainless Steel Rod 12mm','Raw Materials'],['Wiring Harness Assembly','Sub-Assemblies'],
+  ['Pneumatic Valve 1/2in','Components'],['LED Indicator Panel','Components'],
+  ['Forklift Hydraulic Pump','Finished Goods'],['Anti-Vibration Mount','Components'],
+  ['Precision Gear 20T','Sub-Assemblies'],['Thermal Insulation Sheet','Raw Materials'],
+  ['Cable Tie Pack 200ct','Consumables'],['Torque Wrench Calibrated','Finished Goods'],
+  ['Safety Guard Panel','Sub-Assemblies'],['Weld Wire Spool ER70S','Raw Materials'],
+];
+
+function seedRand(seed){ let s = seed; return ()=>{ s = (s*9301+49297)%233280; return s/233280; }; }
+
+const products = NAMES.map((n,i)=>{
+  const rnd = seedRand(i*17+3);
+  const category = n[1];
+  const warehouse = WAREHOUSES[i % WAREHOUSES.length];
+  const supplier = SUPPLIERS[i % SUPPLIERS.length];
+  const available = Math.round(20 + rnd()*480);
+  const assigned = Math.round(rnd()*Math.min(available,120));
+  const reserved = Math.round(rnd()*Math.min(available,60));
+  const inTransit = Math.round(rnd()*140);
+  const price = +(4 + rnd()*380).toFixed(2);
+  const avgDailyUsage = +(0.6 + rnd()*9).toFixed(1);
+  const leadTime = [5,7,10,14,18,21][i%6];
+  const safetyStock = Math.round(avgDailyUsage*leadTime*0.6)+5;
+  const reorderPoint = Math.round(safetyStock + avgDailyUsage*leadTime);
+
+  let status;
+  if(available === 0) status = 'Out of Stock';
+  else if(reserved > available*0.55) status = 'Reserved';
+  else if(inTransit > available*0.9 && available < reorderPoint) status = 'In Transit';
+  else if(available < reorderPoint*0.6) status = 'Low Stock';
+  else status = 'Healthy';
+
+  // synthetic history (6 periods) for expand panel
+  const history = Array.from({length:6},(_,k)=> Math.round(avgDailyUsage*(5+rnd()*4)));
+  const purchaseHistory = Array.from({length:3},(_,k)=>({
+    date: `2026-0${(k%6)+1}-${10+k*3}`,
+    qty: Math.round(reorderPoint*(0.8+rnd()*0.6)),
+    supplier, cost: +(price*(reorderPoint*0.5)).toFixed(0)
+  }));
+  const upcomingPO = rnd() > 0.4 ? [{
+    id:'PO-'+(3000+i), qty: Math.round(reorderPoint*1.1), date: `2026-0${(i%9)+1}-${(i*3)%27+2}`, status: rnd()>0.5?'Confirmed':'Pending'
+  }] : [];
+
+  // ---- fields matching live production columns ----
+  const productType = ['Other','Component','Material','Kit','Consumable'][i%5];
+  const trackingType = (i%2===0) ? 'Serialized' : 'Unserialized';
+  const poQuantity = rnd() > 0.7 ? Math.round(20+rnd()*80) : 0;
+  const sold = Math.round(rnd()*Math.min(available*1.4, 300));
+  const maintenance = rnd() > 0.75 ? Math.round(rnd()*20) : 0;
+  const itemId = 'ITM-'+(5000+i*3);
+  const videoLink = rnd() > 0.82 ? 'https://videos.acme-mfg.com/'+itemId.toLowerCase() : '';
+  const binLocation = rnd() > 0.55 ? `${String.fromCharCode(65+(i%6))}-${(i%12)+1}-0${(i%9)+1}` : '';
+  const internalDescription = rnd() > 0.5 ? 'Verified against ' + supplier + ' spec sheet, rev ' + (1+i%4) : '';
+
+  // per-site breakdown (splits total available/assigned/sold/maintenance across 1-3 sites)
+  const siteCount = 1 + (i%3);
+  const siteList = [];
+  let remStock = available, remAssigned = assigned, remSold = sold, remMaint = maintenance, remPoQty = poQuantity;
+  for(let s=0; s<siteCount; s++){
+    const isLast = s===siteCount-1;
+    const stockShare = isLast ? remStock : Math.round(remStock*(0.3+rnd()*0.4));
+    const assignedShare = isLast ? remAssigned : Math.round(remAssigned*(0.3+rnd()*0.4));
+    const soldShare = isLast ? remSold : Math.round(remSold*(0.3+rnd()*0.4));
+    const maintShare = isLast ? remMaint : Math.round(remMaint*(0.3+rnd()*0.4));
+    const poQtyShare = isLast ? remPoQty : Math.round(remPoQty*(0.3+rnd()*0.4));
+    remStock -= stockShare; remAssigned -= assignedShare; remSold -= soldShare; remMaint -= maintShare; remPoQty -= poQtyShare;
+    siteList.push({
+      site: SITE_CODES[(i+s) % SITE_CODES.length],
+      price, poQuantity: poQtyShare, stock: stockShare, assigned: assignedShare, sold: soldShare, maintenance: maintShare,
+    });
+  }
+  // primary site's serial/lot breakdown — the real distinction:
+  // Serialized  -> one row per unit, each with stock = 1 (individually barcoded)
+  // Unserialized -> a single row holding the full site quantity (one lot/bin barcode)
+  if(siteList.length && siteList[0].stock > 0){
+    const primary = siteList[0];
+    const serials = [];
+
+    if(trackingType==='Serialized'){
+      const serialCount = Math.min(primary.stock, 3 + (i%6));
+      let remAssigned = primary.assigned, remSold = primary.sold, remMaint = primary.maintenance;
+      for(let k=0; k<serialCount; k++){
+        const isLast = k===serialCount-1;
+        const hasCustomer = isLast && remAssigned>0;
+        const assignedShare = hasCustomer ? 1 : 0;
+        const soldShare = (k===0 && remSold>0) ? 1 : 0;
+        const maintShare = (isLast && remMaint>0) ? 1 : 0;
+        remAssigned -= assignedShare; remSold -= soldShare; remMaint -= maintShare;
+        serials.push({
+          serial: 'T'+p_sku(itemId,k),
+          price, customer: hasCustomer ? SUPPLIERS[(i+k)%SUPPLIERS.length].split(' ')[0].toUpperCase()+' ACCT' : '',
+          startDate: hasCustomer ? `2026-0${(k%9)+1}-1${k}` : '',
+          endDate: hasCustomer && rnd()>0.5 ? `2026-1${(k%2)+1}-0${k+1}` : '',
+          status: '',
+          stock: 1, assigned: assignedShare, sold: soldShare, maintenance: maintShare,
+          manufSerial: rnd()>0.4 ? SERIAL_PREFIX[i%SERIAL_PREFIX.length]+Math.round(1000000+rnd()*8999999) : '',
+          added: `2026-0${(k%9)+1}-0${(k%8)+1}`,
+          notes: rnd()>0.85 ? 'Inspected on receipt' : '',
+          binLocation: binLocation || '',
+        });
+      }
+    } else {
+      // Unserialized: a single lot barcode carries the entire site quantity
+      serials.push({
+        serial: 'T'+p_sku(itemId,0),
+        price, customer:'', startDate:'', endDate:'', status:'',
+        stock: primary.stock, assigned: primary.assigned, sold: primary.sold, maintenance: primary.maintenance,
+        manufSerial: '', added: `2026-0${(i%9)+1}-0${(i%8)+1}`, notes:'', binLocation: binLocation || '',
+      });
+    }
+    primary.serials = serials;
+  }
+
+  function p_sku(id, k){ return id.replace('ITM-','') + '-2652' + k; }
+
+  return {
+    id:i+1, name:n[0], sku:'SKU-'+(1000+i*7), category, warehouse, site:siteList[0].site, supplier,
+    available, assigned, reserved, inTransit, price, status,
+    avgDailyUsage, leadTime, safetyStock, reorderPoint, history, purchaseHistory, upcomingPO,
+    productType, trackingType, poQuantity, sold, maintenance, itemId, videoLink, binLocation, internalDescription,
+    sites: siteList,
+  };
+});
+
+/* ============================================================
+   STATE
+============================================================ */
+const state = {
+  view:'list', listTab:'inventory',
+  inv:{ search:'', category:'', site:'', status:'', tracking:'', sortKey:'name', sortDir:'asc', selected:new Set(), page:1, pageSize:10, expandedProducts:new Set(), expandedSites:new Set(), hiddenCols:new Set() },
+  fc:{ search:'', supplier:'', site:'', category:'', period:30, expanded:new Set() },
+  card:{ search:'', category:'', site:'', status:'', sort:'name-asc', density:'comfortable', cart:new Set() },
+};
+
+function badgeClass(status){
+  return {'Healthy':'healthy','Low Stock':'low','Out of Stock':'out','Reserved':'reserved','In Transit':'transit',
+          'Critical':'critical','Stockout Predicted':'stockout'}[status] || 'healthy';
+}
+function money(v){ return '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function moneyShort(v){ return '$'+Math.round(v).toLocaleString('en-US'); }
+function moneyPlain(v){ return '$ '+Math.round(v).toLocaleString('en-US'); }
+
+/* populate static selects */
+function fillSelect(el, arr){
+  arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
+}
+function fillSiteSelect(el, codes){
+  codes.forEach(v=>{ const o=document.createElement('option'); o.value=String(v); o.textContent='Site '+v; el.appendChild(o); });
+}
+['invCategory','fcCategory','cardCategory'].forEach(id=>fillSelect(document.getElementById(id),CATEGORIES));
+['invSite','fcSite','cardSite'].forEach(id=>fillSiteSelect(document.getElementById(id),SITE_CODES));
+fillSelect(document.getElementById('fcSupplier'),SUPPLIERS);
+
+/* ============================================================
+   VIEW / TAB SWITCH
+============================================================ */
+document.getElementById('viewSwitch').addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  state.view = btn.dataset.view;
+  document.querySelectorAll('#viewSwitch button').forEach(b=>b.classList.toggle('active', b===btn));
+  document.getElementById('listView').classList.toggle('hidden', state.view!=='list');
+  document.getElementById('cardView').classList.toggle('hidden', state.view!=='card');
+  if(state.view==='card') renderCards();
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    state.listTab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b===btn));
+    document.getElementById('inventoryPanel').classList.toggle('hidden', state.listTab!=='inventory');
+    document.getElementById('forecastPanel').classList.toggle('hidden', state.listTab!=='forecast');
+    if(state.listTab==='forecast') renderForecast();
+  });
+});
+
+/* ============================================================
+   INVENTORY TABLE
+============================================================ */
+const invColumns = [
+  {key:'__expand', label:'', sortable:false},
+  {key:'__select', label:'', sortable:false},
+  {key:'name', label:'Product', sortable:true},
+  {key:'productType', label:'Product Type', sortable:true},
+  {key:'price', label:'Price', sortable:true},
+  {key:'poQuantity', label:'PO Quantity', sortable:true},
+  {key:'available', label:'Stock', sortable:true},
+  {key:'assigned', label:'Assigned', sortable:true},
+  {key:'sold', label:'Sold', sortable:true},
+  {key:'maintenance', label:'Maintenance', sortable:true},
+  {key:'itemId', label:'Item ID', sortable:true},
+  {key:'videoLink', label:'Video Link', sortable:false},
+  {key:'binLocation', label:'Bin Location', sortable:true},
+  {key:'internalDescription', label:'Internal Description', sortable:false},
+  {key:'status', label:'Status', sortable:true},
+  {key:'__actions', label:'Actions', sortable:false},
+];
+const INV_COL_WIDTHS = {
+  __expand:32, __select:34, name:224, productType:112, price:100, poQuantity:110,
+  available:90, assigned:90, sold:80, maintenance:106, itemId:110, videoLink:104,
+  binLocation:112, internalDescription:210, status:120, __actions:96,
+};
+const INV_MANDATORY_COLS = ['__expand','__select','name','__actions'];
+function isInvColVisible(key){ return INV_MANDATORY_COLS.includes(key) || !state.inv.hiddenCols.has(key); }
+function getVisibleInvColumns(){ return invColumns.filter(c=>isInvColVisible(c.key)); }
+
+function renderInvColgroup(){
+  document.getElementById('invColgroup').innerHTML =
+    getVisibleInvColumns().map(c=>`<col style="width:${INV_COL_WIDTHS[c.key]}px">`).join('');
+}
+
+function renderInvHead(){
+  renderInvColgroup();
+  const cols = getVisibleInvColumns();
+  const row = document.getElementById('invHeadRow');
+  row.innerHTML = '';
+  cols.forEach((col,idx)=>{
+    const th = document.createElement('th');
+    if(col.key==='__expand'){ th.classList.add('sticky-col'); th.style.left='0px'; }
+    if(col.key==='__select'){ th.classList.add('sticky-col'); th.style.left='32px'; }
+    if(col.key==='name'){ th.classList.add('sticky-col'); th.style.left='66px'; }
+    if(state.inv.sortKey===col.key) th.classList.add('sorted');
+    let inner;
+    if(col.key==='__select'){
+      inner = `<div class="th-inner no-sort"><span class="checkbox" id="invSelectAll"></span></div>`;
+    } else if(col.key==='__expand'){
+      inner = `<div class="th-inner no-sort"></div>`;
+    } else if(col.key==='__actions'){
+      inner = `<div class="th-inner no-sort">${col.label}</div>`;
+    } else if(col.sortable===false){
+      inner = `<div class="th-inner no-sort"><span>${col.label}</span></div>`;
+    } else {
+      const dirIcon = state.inv.sortKey===col.key ? (state.inv.sortDir==='asc'?ic.sortUp:ic.sortDown) : ic.sortIcon;
+      inner = `<div class="th-inner" data-key="${col.key}"><span>${col.label}</span><span class="sort-ic">${dirIcon}</span></div>`;
+    }
+    th.innerHTML = inner + (idx<cols.length-1 ? '<div class="resizer" data-col="'+idx+'"></div>' : '');
+    row.appendChild(th);
+  });
+  row.querySelectorAll('.th-inner[data-key]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const key = el.dataset.key;
+      if(state.inv.sortKey===key) state.inv.sortDir = state.inv.sortDir==='asc'?'desc':'asc';
+      else { state.inv.sortKey = key; state.inv.sortDir='asc'; }
+      renderInvHead(); renderInvBody();
+    });
+  });
+  document.getElementById('invSelectAll').addEventListener('click', ()=>{
+    const pageItems = getInvPageItems();
+    const allSelected = pageItems.every(p=>state.inv.selected.has(p.id));
+    pageItems.forEach(p=> allSelected ? state.inv.selected.delete(p.id) : state.inv.selected.add(p.id));
+    renderInvBody();
+  });
+  attachResizers('invTable');
+}
+
+function attachResizers(tableId){
+  const table = document.getElementById(tableId);
+  table.querySelectorAll('.resizer').forEach(r=>{
+    r.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      const colIdx = +r.dataset.col;
+      const col = table.querySelectorAll('colgroup col')[colIdx];
+      const startX = e.clientX; const startW = col.offsetWidth;
+      function onMove(ev){ const w = Math.max(60, startW + (ev.clientX-startX)); col.style.width = w+'px'; }
+      function onUp(){ document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+      document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+function getInvFiltered(){
+  const f = state.inv;
+  return products.filter(p=>{
+    if(f.search && !(p.name.toLowerCase().includes(f.search.toLowerCase()) || p.sku.toLowerCase().includes(f.search.toLowerCase()) || p.itemId.toLowerCase().includes(f.search.toLowerCase()))) return false;
+    if(f.category && p.category!==f.category) return false;
+    if(f.site && String(p.site)!==f.site) return false;
+    if(f.status && p.status!==f.status) return false;
+    if(f.tracking && p.trackingType!==f.tracking) return false;
+    return true;
+  }).sort((a,b)=>{
+    const k = f.sortKey; let av=a[k], bv=b[k];
+    if(typeof av==='string'){ av=av.toLowerCase(); bv=bv.toLowerCase(); }
+    if(av<bv) return f.sortDir==='asc'?-1:1;
+    if(av>bv) return f.sortDir==='asc'?1:-1;
+    return 0;
+  });
+}
+function getInvPageItems(){
+  const all = getInvFiltered();
+  const start = (state.inv.page-1)*state.inv.pageSize;
+  return all.slice(start, start+state.inv.pageSize);
+}
+
+function fmtOrDash(v){ return (v===undefined || v===null || v==='') ? '<span style="color:var(--ink-4)">—</span>' : v; }
+function fmtNum(v){ return v.toLocaleString(); }
+
+function renderInvBody(){
+  const filtered = getInvFiltered();
+  const items = getInvPageItems();
+  const body = document.getElementById('invBody');
+  body.innerHTML = '';
+  const visibleCols = getVisibleInvColumns();
+  const colCount = visibleCols.length;
+  if(items.length===0){
+    body.innerHTML = `<tr><td colspan="${colCount}" style="height:auto;"><div class="empty-state">${ic.inbox}<h3>No products found</h3><p>Try adjusting your search or filters.</p></div></td></tr>`;
+  }
+  items.forEach(p=>{
+    const tr = document.createElement('tr');
+    if(state.inv.selected.has(p.id)) tr.classList.add('selected');
+    const color = CAT_COLOR[p.category];
+    const expanded = state.inv.expandedProducts.has(p.id);
+    const cellMap = {
+      __expand: `<td class="sticky-col icon-cell" style="left:0px;">${p.sites.length ? `<button class="expand-btn ${expanded?'open':''}" data-pexp="${p.id}">${ic.chevRight}</button>` : ''}</td>`,
+      __select: `<td class="sticky-col icon-cell" style="left:32px;"><span class="checkbox ${state.inv.selected.has(p.id)?'checked':''}" data-sel="${p.id}">${state.inv.selected.has(p.id)?ic.check:''}</span></td>`,
+      name: `<td class="sticky-col" style="left:66px;">
+        <div class="prod-cell">
+          <div class="prod-thumb" style="background:${color}">${CAT_ICON[p.category].replace('width="15" height="15"','width="16" height="16"')}</div>
+          <div class="prod-name-wrap">
+            <div class="prod-name">${p.name}</div>
+            <div class="prod-sub-row"><span class="prod-sub">${p.sku}</span><span class="track-tag ${p.trackingType==='Serialized'?'serialized':'unserialized'}">${p.trackingType}</span></div>
+          </div>
+        </div>
+      </td>`,
+      productType: `<td>${p.productType}</td>`,
+      price: `<td class="num">${money(p.price)} <span class="info-ic" data-price="${p.price}">${ic.infoDot}</span></td>`,
+      poQuantity: `<td class="num">${p.poQuantity>0?fmtNum(p.poQuantity):'0'}</td>`,
+      available: `<td class="num" style="font-weight:600;">${fmtNum(p.available)}</td>`,
+      assigned: `<td class="num">${fmtNum(p.assigned)}</td>`,
+      sold: `<td class="num">${fmtNum(p.sold)}</td>`,
+      maintenance: `<td class="num">${p.maintenance>0?fmtNum(p.maintenance):'0'}</td>`,
+      itemId: `<td class="num">${p.itemId}</td>`,
+      videoLink: `<td>${p.videoLink ? `<a href="${p.videoLink}" target="_blank" rel="noopener" class="video-link">${ic.play} Watch</a>` : fmtOrDash('')}</td>`,
+      binLocation: `<td>${fmtOrDash(p.binLocation)}</td>`,
+      internalDescription: `<td title="${p.internalDescription||''}"><span class="desc-clip">${fmtOrDash(p.internalDescription)}</span></td>`,
+      status: `<td><span class="badge ${badgeClass(p.status)}"><span class="dot"></span>${p.status}</span></td>`,
+      __actions: `<td class="icon-cell">
+        <div class="row-actions">
+          <button class="icon-btn" title="View">${ic.eye}</button>
+          <button class="icon-btn" title="Edit">${ic.edit}</button>
+          <button class="icon-btn" data-more="${p.id}" title="More">${ic.more}</button>
+        </div>
+      </td>`,
+    };
+    tr.innerHTML = visibleCols.map(c=>cellMap[c.key]).join('');
+    body.appendChild(tr);
+
+    if(expanded){
+      const dtr = document.createElement('tr');
+      dtr.className = 'detail-row';
+      dtr.innerHTML = `<td colspan="${colCount}" style="padding:0;">${renderSiteTable(p)}</td>`;
+      body.appendChild(dtr);
+    }
+  });
+
+  body.querySelectorAll('[data-sel]').forEach(cb=>{
+    cb.addEventListener('click', ()=>{
+      const id = +cb.dataset.sel;
+      state.inv.selected.has(id) ? state.inv.selected.delete(id) : state.inv.selected.add(id);
+      renderInvBody(); updateInvBulkBar();
+    });
+  });
+  body.querySelectorAll('[data-more]').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); openRowMenu(btn, +btn.dataset.more); });
+  });
+  body.querySelectorAll('[data-pexp]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = +btn.dataset.pexp;
+      state.inv.expandedProducts.has(id) ? state.inv.expandedProducts.delete(id) : state.inv.expandedProducts.add(id);
+      renderInvBody();
+    });
+  });
+  body.querySelectorAll('[data-sexp]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.dataset.sexp;
+      state.inv.expandedSites.has(key) ? state.inv.expandedSites.delete(key) : state.inv.expandedSites.add(key);
+      renderInvBody();
+    });
+  });
+  body.querySelectorAll('[data-serialmore]').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); openSerialMenu(btn); });
+  });
+
+  const totalFiltered = filtered.length;
+  const start = totalFiltered===0?0:(state.inv.page-1)*state.inv.pageSize+1;
+  const end = Math.min(state.inv.page*state.inv.pageSize, totalFiltered);
+  document.getElementById('invPageInfo').textContent = `Showing ${start}–${end} of ${totalFiltered}`;
+  document.getElementById('invPrev').disabled = state.inv.page<=1;
+  document.getElementById('invNext').disabled = end>=totalFiltered;
+  renderInvPageNumbers(totalFiltered);
+  updateInvBulkBar();
+}
+
+function renderInvPageNumbers(totalFiltered){
+  const totalPages = Math.max(1, Math.ceil(totalFiltered/state.inv.pageSize));
+  const cur = Math.min(state.inv.page, totalPages);
+  const wrap = document.getElementById('invPgNumbers');
+
+  // build page list with ellipsis: first, last, current +-1
+  const pages = [];
+  const add = n=> { if(!pages.includes(n)) pages.push(n); };
+  add(1); add(totalPages);
+  add(cur); add(cur-1); add(cur+1);
+  const clean = pages.filter(n=>n>=1 && n<=totalPages).sort((a,b)=>a-b);
+
+  let html = '';
+  let prev = 0;
+  clean.forEach(n=>{
+    if(prev && n-prev>1) html += `<span class="pg-ellipsis">…</span>`;
+    html += `<button class="${n===cur?'active':''}" data-page="${n}">${n}</button>`;
+    prev = n;
+  });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ state.inv.page = +btn.dataset.page; renderInvBody(); });
+  });
+}
+
+/* ---- nested SITE breakdown table ---- */
+function renderSiteTable(p){
+  const rows = p.sites.map((s,idx)=>{
+    const key = p.id+':'+idx;
+    const open = state.inv.expandedSites.has(key);
+    let html = `
+      <tr>
+        <td class="icon-cell" style="width:32px;">${s.serials ? `<button class="expand-btn ${open?'open':''}" data-sexp="${key}">${ic.chevRight}</button>` : ''}</td>
+        <td style="font-weight:600;">${s.site}</td>
+        <td class="num">${s.poQuantity>0?fmtNum(s.poQuantity):'0'}</td>
+        <td class="num">${moneyPlain(s.price)} <span class="info-ic" data-price="${s.price}">${ic.infoDot}</span></td>
+        <td class="num">${fmtNum(s.stock)}</td>
+        <td class="num">${fmtNum(s.assigned)}</td>
+        <td class="num">${fmtNum(s.sold)}</td>
+        <td class="num">${fmtNum(s.maintenance)}</td>
+      </tr>`;
+    if(open && s.serials){
+      html += `<tr><td colspan="8" style="padding:0;">${renderSerialTable(s.serials)}</td></tr>`;
+    }
+    return html;
+  }).join('');
+
+  return `
+    <div class="nested-wrap">
+      <table class="nested-table site-table">
+        <colgroup><col style="width:32px"><col style="width:90px"><col style="width:110px"><col style="width:110px"><col style="width:100px"><col style="width:100px"><col style="width:90px"><col style="width:110px"></colgroup>
+        <thead><tr><th></th><th>Site</th><th>PO Quantity</th><th>Price</th><th>Stock</th><th>Assigned</th><th>Sold</th><th>Maintenance</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ---- nested SERIAL# breakdown table ---- */
+function renderSerialTable(serials){
+  const rows = serials.map(s=>`
+    <tr>
+      <td><a href="#" class="serial-link" onclick="return false;">${s.serial}</a></td>
+      <td class="num">${moneyPlain(s.price)} <span class="info-ic" data-price="${s.price}">${ic.infoDot}</span></td>
+      <td>${s.customer?`<span class="customer-tag">${s.customer}</span>`:fmtOrDash('')}</td>
+      <td>${fmtOrDash(s.startDate)}</td>
+      <td>${fmtOrDash(s.endDate)}</td>
+      <td>${s.status?`<span class="badge ${badgeClass(s.status)}"><span class="dot"></span>${s.status}</span>`:fmtOrDash('')}</td>
+      <td class="num">${fmtNum(s.stock)}</td>
+      <td class="num">${fmtNum(s.assigned)}</td>
+      <td class="num">${fmtNum(s.sold)}</td>
+      <td class="num">${fmtNum(s.maintenance)}</td>
+      <td class="num">${fmtOrDash(s.manufSerial)}</td>
+      <td>${fmtOrDash(s.added)}</td>
+      <td title="${s.notes||''}"><span class="desc-clip">${fmtOrDash(s.notes)}</span></td>
+      <td>${fmtOrDash(s.binLocation)}</td>
+      <td class="icon-cell"><button class="icon-btn" data-serialmore title="More">${ic.more}</button></td>
+    </tr>`).join('');
+
+  return `
+    <div class="nested-wrap serial-wrap">
+      <table class="nested-table serial-table">
+        <colgroup>
+          <col style="width:90px"><col style="width:110px"><col style="width:110px"><col style="width:100px"><col style="width:100px">
+          <col style="width:100px"><col style="width:100px"><col style="width:100px"><col style="width:90px"><col style="width:110px">
+          <col style="width:110px"><col style="width:100px"><col style="width:140px"><col style="width:110px"><col style="width:90px">
+        </colgroup>
+        <thead><tr>
+          <th>Serial#</th><th>Price</th><th>Customer</th><th>Start Date</th><th>End Date</th><th>Status</th>
+          <th>Stock</th><th>Assigned</th><th>Sold</th><th>Maintenance</th><th>Manuf Serial</th><th>Added</th><th>Notes</th><th>Bin Location</th><th>Actions</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function openSerialMenu(anchor){
+  const rect = anchor.getBoundingClientRect();
+  const menuLeft = Math.max(8, rect.right-150);
+  const menuWidth = 172; // approx row-menu width
+  const submenuWidth = 158; // approx submenu width incl. margin
+  const flip = (menuLeft + menuWidth + submenuWidth) > window.innerWidth;
+  rowMenu.innerHTML = `
+    <div class="has-sub ${flip?'flip-left':''}">
+      <button class="menu-row-item">Move To ${ic.chevRightSm}</button>
+      <div class="submenu">
+        <button class="menu-row-item"><span class="menu-icon">${ic.wrenchSm}</span>Maintenance</button>
+      </div>
+    </div>
+    <button class="menu-row-item">Transfer</button>
+  `;
+  rowMenu.style.top = (rect.bottom+4)+'px';
+  rowMenu.style.left = menuLeft+'px';
+  rowMenu.classList.remove('hidden');
+  rowMenu.querySelectorAll('button').forEach(b=> b.onclick = ()=> rowMenu.classList.add('hidden'));
+}
+
+function updateInvBulkBar(){
+  const n = state.inv.selected.size;
+  document.getElementById('invBulkBar').classList.toggle('show', n>0);
+  document.getElementById('invBulkCount').textContent = n + (n===1?' item selected':' items selected');
+}
+document.getElementById('invClearSel').addEventListener('click', ()=>{ state.inv.selected.clear(); renderInvBody(); });
+
+/* row menu (More actions) */
+const rowMenu = document.getElementById('rowMenu');
+
+/* price breakdown popover (Day / Week / Month) */
+const priceTooltip = document.getElementById('priceTooltip');
+function uomRates(day){
+  return { day, week: Math.round(day*6), month: Math.round(day*29) };
+}
+document.addEventListener('mouseover', e=>{
+  const el = e.target.closest('.info-ic');
+  if(!el) return;
+  const day = +el.dataset.price;
+  const r = uomRates(day);
+  priceTooltip.innerHTML = `
+    <table>
+      <thead><tr><th>UOM</th><th>Price</th></tr></thead>
+      <tbody>
+        <tr><td>Day</td><td class="price-val">$ ${r.day.toLocaleString()}</td></tr>
+        <tr><td>Week</td><td class="price-val">$ ${r.week.toLocaleString()}</td></tr>
+        <tr><td>Month</td><td class="price-val">$ ${r.month.toLocaleString()}</td></tr>
+      </tbody>
+    </table>`;
+  const rect = el.getBoundingClientRect();
+  priceTooltip.classList.remove('hidden');
+  const tw = priceTooltip.offsetWidth, th = priceTooltip.offsetHeight;
+  let top = rect.bottom + 8;
+  let left = rect.left - tw/2 + 8;
+  if(left + tw > window.innerWidth - 8) left = window.innerWidth - tw - 8;
+  if(left < 8) left = 8;
+  if(top + th > window.innerHeight - 8) top = rect.top - th - 8;
+  priceTooltip.style.top = top+'px';
+  priceTooltip.style.left = left+'px';
+});
+document.addEventListener('mouseout', e=>{
+  const el = e.target.closest('.info-ic');
+  if(!el) return;
+  if(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.info-ic')) return;
+  priceTooltip.classList.add('hidden');
+});
+function openRowMenu(anchor, productId){
+  const rect = anchor.getBoundingClientRect();
+  rowMenu.innerHTML = `
+    <button data-act="dup">${ic.copy} Duplicate</button>
+    <button data-act="adjust">${ic.adjust} Adjust stock</button>
+    <button data-act="po">${ic.po} Create purchase order</button>
+    <hr>
+    <button data-act="del" class="danger">${ic.trash} Delete</button>
+  `;
+  rowMenu.style.top = (rect.bottom+4)+'px';
+  rowMenu.style.left = Math.max(8, rect.right-176)+'px';
+  rowMenu.classList.remove('hidden');
+  rowMenu.querySelectorAll('button').forEach(b=> b.onclick = ()=> rowMenu.classList.add('hidden'));
+}
+document.addEventListener('click', e=>{
+  if(!rowMenu.contains(e.target) && !e.target.closest('[data-more]')) rowMenu.classList.add('hidden');
+});
+
+/* inventory toolbar events */
+document.getElementById('invSearch').addEventListener('input', e=>{ state.inv.search=e.target.value; state.inv.page=1; renderInvBody(); });
+document.getElementById('invCategory').addEventListener('change', e=>{ state.inv.category=e.target.value; state.inv.page=1; renderInvBody(); });
+document.getElementById('invSite').addEventListener('change', e=>{ state.inv.site=e.target.value; state.inv.page=1; renderInvBody(); });
+document.getElementById('invStatus').addEventListener('change', e=>{ state.inv.status=e.target.value; state.inv.page=1; renderInvBody(); });
+document.getElementById('invTracking').addEventListener('change', e=>{ state.inv.tracking=e.target.value; state.inv.page=1; renderInvBody(); });
+document.getElementById('invPageSize').addEventListener('change', e=>{ state.inv.pageSize=+e.target.value; state.inv.page=1; renderInvBody(); });
+document.getElementById('invPrev').addEventListener('click', ()=>{ if(state.inv.page>1){ state.inv.page--; renderInvBody(); } });
+document.getElementById('invNext').addEventListener('click', ()=>{ state.inv.page++; renderInvBody(); });
+document.getElementById('invExportBtn').addEventListener('click', ()=> toast('Exporting inventory to CSV…'));
+document.getElementById('addProductBtn').addEventListener('click', ()=> toast('Opening “Add Product” form…'));
+
+/* column visibility picker */
+const TOGGLEABLE_INV_COLS = invColumns.filter(c=>!INV_MANDATORY_COLS.includes(c.key));
+function renderColPickerMenu(){
+  const menu = document.getElementById('colPickerMenu');
+  menu.innerHTML = `
+    <div class="cp-title">Show columns</div>
+    ${TOGGLEABLE_INV_COLS.map(c=>`
+      <label>
+        <input type="checkbox" data-colkey="${c.key}" ${state.inv.hiddenCols.has(c.key)?'':'checked'}>
+        <span>${c.label}</span>
+      </label>`).join('')}
+    <hr>
+    <button class="cp-reset" id="colPickerReset">Show all columns</button>
+  `;
+  menu.querySelectorAll('input[data-colkey]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const key = cb.dataset.colkey;
+      cb.checked ? state.inv.hiddenCols.delete(key) : state.inv.hiddenCols.add(key);
+      renderInvHead(); renderInvBody();
+    });
+  });
+  document.getElementById('colPickerReset').addEventListener('click', ()=>{
+    state.inv.hiddenCols.clear();
+    renderInvHead(); renderInvBody(); renderColPickerMenu();
+  });
+}
+document.getElementById('colPickerBtn').addEventListener('click', e=>{
+  e.stopPropagation();
+  const menu = document.getElementById('colPickerMenu');
+  const willOpen = menu.classList.contains('hidden');
+  menu.classList.add('hidden');
+  if(willOpen){ renderColPickerMenu(); menu.classList.remove('hidden'); }
+});
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('colPickerMenu');
+  if(!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target.id!=='colPickerBtn' && !e.target.closest('#colPickerBtn')){
+    menu.classList.add('hidden');
+  }
+});
+
+/* ============================================================
+   FORECASTING TABLE
+============================================================ */
+const fcColumns = [
+  {key:'name', label:'Product'},
+  {key:'sku', label:'SKU'},
+  {key:'available', label:'Current Stock'},
+  {key:'avgDailyUsage', label:'Avg Daily Usage'},
+  {key:'forecastDemand', label:'Forecast Demand'},
+  {key:'projectedStock', label:'Projected Stock'},
+  {key:'safetyStock', label:'Safety Stock'},
+  {key:'reorderPoint', label:'Reorder Point'},
+  {key:'recQty', label:'Recommended Qty'},
+  {key:'supplier', label:'Supplier'},
+  {key:'leadTime', label:'Lead Time'},
+  {key:'shortageDate', label:'Expected Shortage Date'},
+  {key:'fStatus', label:'Status'},
+];
+
+function computeForecast(p, period){
+  const forecastDemand = Math.round(p.avgDailyUsage*period);
+  const projectedStock = p.available + p.inTransit - forecastDemand;
+  let fStatus;
+  if(projectedStock<=0) fStatus='Stockout Predicted';
+  else if(projectedStock<p.safetyStock) fStatus='Critical';
+  else if(projectedStock<p.reorderPoint) fStatus='Low';
+  else fStatus='Healthy';
+  const recQty = projectedStock<p.reorderPoint ? Math.max(0, Math.round((p.reorderPoint*1.4)+forecastDemand-projectedStock)) : 0;
+  const daysLeft = p.avgDailyUsage>0 ? (p.available/p.avgDailyUsage) : 999;
+  let shortageDate = '—';
+  if(daysLeft < period){
+    const d = new Date(2026,6,23); d.setDate(d.getDate()+Math.round(daysLeft));
+    shortageDate = d.toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric'});
+  }
+  return {forecastDemand, projectedStock, fStatus, recQty, shortageDate};
+}
+
+function getFcFiltered(){
+  const f = state.fc;
+  return products.filter(p=>{
+    if(f.search && !(p.name.toLowerCase().includes(f.search.toLowerCase()) || p.sku.toLowerCase().includes(f.search.toLowerCase()))) return false;
+    if(f.supplier && p.supplier!==f.supplier) return false;
+    if(f.site && String(p.site)!==f.site) return false;
+    if(f.category && p.category!==f.category) return false;
+    return true;
+  }).map(p=> Object.assign({}, p, computeForecast(p, state.fc.period)));
+}
+
+function renderFcHead(){
+  const row = document.getElementById('fcHeadRow');
+  row.innerHTML = '';
+  const cols = [{key:'__exp', label:''}, ...fcColumns, {key:'__actions', label:'Actions'}];
+  cols.forEach((col,idx)=>{
+    const th = document.createElement('th');
+    if(col.key==='name') th.classList.add('sticky-col');
+    let inner;
+    if(col.key==='__exp' || col.key==='__actions'){ inner = `<div class="th-inner no-sort">${col.label}</div>`; }
+    else { inner = `<div class="th-inner no-sort"><span>${col.label}</span></div>`; }
+    th.innerHTML = inner + (idx<cols.length-1 ? '<div class="resizer" data-col="'+idx+'"></div>' : '');
+    row.appendChild(th);
+  });
+  attachResizers('fcTable');
+}
+
+function sparkline(history){
+  const max = Math.max(...history, 1);
+  return `<div class="sparkbar-row">` + history.map((v,i)=>{
+    const h = Math.max(6, (v/max)*44);
+    return `<div class="bar" style="height:${h}px"><span>P${i+1}</span></div>`;
+  }).join('') + `</div>`;
+}
+
+function renderFcBody(){
+  const items = getFcFiltered();
+  const body = document.getElementById('fcBody');
+  body.innerHTML = '';
+  if(items.length===0){
+    body.innerHTML = `<tr><td colspan="16" style="height:auto;"><div class="empty-state">${ic.inbox}<h3>No products found</h3><p>Try adjusting your search or filters.</p></div></td></tr>`;
+  }
+  items.forEach(p=>{
+    const open = state.fc.expanded.has(p.id);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="icon-cell"><button class="expand-btn ${open?'open':''}" data-exp="${p.id}">${ic.chevRight}</button></td>
+      <td class="sticky-col">
+        <div class="prod-cell">
+          <div class="prod-thumb" style="background:${CAT_COLOR[p.category]}">${CAT_ICON[p.category].replace('width="15" height="15"','width="16" height="16"')}</div>
+          <div class="prod-name-wrap">
+            <div class="prod-name">${p.name}</div>
+            <div class="prod-sub">${p.category}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num">${p.sku}</td>
+      <td class="num">${p.available.toLocaleString()}</td>
+      <td class="num">${p.avgDailyUsage}/day</td>
+      <td class="num">${p.forecastDemand.toLocaleString()}</td>
+      <td class="num" style="color:${p.projectedStock<=0?'var(--danger-strong)':p.projectedStock<p.safetyStock?'var(--danger)':'var(--ink)'}; font-weight:700;">${p.projectedStock.toLocaleString()}</td>
+      <td class="num">${p.safetyStock.toLocaleString()}</td>
+      <td class="num">${p.reorderPoint.toLocaleString()}</td>
+      <td class="num" style="font-weight:700;">${p.recQty>0?p.recQty.toLocaleString():'—'}</td>
+      <td>${p.supplier}</td>
+      <td>${p.leadTime} days</td>
+      <td class="num">${p.shortageDate}</td>
+      <td><span class="badge ${badgeClass(p.fStatus)}"><span class="dot"></span>${p.fStatus}</span></td>
+      <td class="icon-cell">
+        <div class="row-actions">
+          <button class="btn sm" data-createpo="${p.id}">${ic.po} Reorder</button>
+        </div>
+      </td>
+    `;
+    body.appendChild(tr);
+
+    if(open){
+      const dtr = document.createElement('tr');
+      dtr.className = 'detail-row';
+      dtr.innerHTML = `<td colspan="16"><div class="detail-wrap"><div class="detail-grid">
+        <div class="detail-panel"><h4>${ic.history} Historical Consumption</h4>${sparkline(p.history)}</div>
+        <div class="detail-panel"><h4>${ic.trend} Inventory Trend</h4>${trendSvg(p)}</div>
+        <div class="detail-panel"><h4>${ic.cart} Purchase History</h4>
+          <table class="mini-table"><thead><tr><th>Date</th><th>Qty</th><th>Cost</th></tr></thead><tbody>
+          ${p.purchaseHistory.map(ph=>`<tr><td class="num">${ph.date}</td><td class="num">${ph.qty}</td><td class="num">${moneyShort(ph.cost)}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+        <div class="detail-panel"><h4>${ic.truck} Upcoming Purchase Orders</h4>
+          ${p.upcomingPO.length ? p.upcomingPO.map(po=>`<div class="po-item"><span class="po-id">${po.id}</span><span>${po.qty} units</span><span>${po.date}</span><span class="badge ${po.status==='Confirmed'?'transit':'low'}"><span class="dot"></span>${po.status}</span></div>`).join('') : `<p class="tooltip-note">No purchase orders currently in transit.</p>`}
+        </div>
+        <div class="detail-panel"><h4>${ic.supplier} Supplier Details</h4>
+          <div class="kv-row"><span>Supplier</span><span>${p.supplier}</span></div>
+          <div class="kv-row"><span>Lead time</span><span>${p.leadTime} days</span></div>
+          <div class="kv-row"><span>Reliability</span><span>${92 - (p.id%4)*3}% on-time</span></div>
+          <div class="kv-row"><span>Min order qty</span><span class="num">${Math.round(p.reorderPoint*0.5)}</span></div>
+        </div>
+        <div class="detail-panel"><h4>${ic.calc} Forecast Breakdown</h4>
+          <div class="kv-row"><span>Current stock</span><span class="num">${p.available}</span></div>
+          <div class="kv-row"><span>+ In transit</span><span class="num">${p.inTransit}</span></div>
+          <div class="kv-row"><span>− Forecast demand (${state.fc.period}d)</span><span class="num">${p.forecastDemand}</span></div>
+          <div class="kv-row"><span>= Projected stock</span><span class="num">${p.projectedStock}</span></div>
+          <div class="kv-row"><span>Reorder point</span><span class="num">${p.reorderPoint}</span></div>
+        </div>
+      </div></div></td>`;
+      body.appendChild(dtr);
+    }
+  });
+
+  body.querySelectorAll('[data-exp]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = +btn.dataset.exp;
+      state.fc.expanded.has(id) ? state.fc.expanded.delete(id) : state.fc.expanded.add(id);
+      renderFcBody();
+    });
+  });
+  body.querySelectorAll('[data-createpo]').forEach(btn=>{
+    btn.addEventListener('click', ()=> toast('Draft purchase order created for reorder.'));
+  });
+}
+
+function trendSvg(p){
+  const pts = p.history.concat([Math.max(1,p.history[p.history.length-1]-p.avgDailyUsage*2)]);
+  const max = Math.max(...pts); const w=180,h=44;
+  const step = w/(pts.length-1);
+  const path = pts.map((v,i)=> `${i===0?'M':'L'} ${(i*step).toFixed(1)} ${(h-(v/max)*h).toFixed(1)}`).join(' ');
+  return `<svg width="100%" height="52" viewBox="0 0 ${w} ${h+8}" preserveAspectRatio="none" style="overflow:visible">
+    <path d="${path}" fill="none" stroke="var(--info)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    ${pts.map((v,i)=>`<circle cx="${(i*step).toFixed(1)}" cy="${(h-(v/max)*h).toFixed(1)}" r="2.2" fill="var(--info)"/>`).join('')}
+  </svg>`;
+}
+
+function renderFcSummary(){
+  const period = state.fc.period;
+  const computed = products.map(p=> Object.assign({}, p, computeForecast(p, period)));
+  const total = computed.length;
+  const needReorder = computed.filter(p=>p.recQty>0).length;
+  const critical = computed.filter(p=>p.fStatus==='Critical'||p.fStatus==='Stockout Predicted').length;
+  const coverageDays = Math.round(computed.reduce((a,p)=> a + (p.avgDailyUsage>0?p.available/p.avgDailyUsage:0),0)/total);
+  const purchaseValue = computed.reduce((a,p)=> a + p.recQty*p.price, 0);
+  const upcomingShort = computed.filter(p=>p.shortageDate!=='—').length;
+
+  const cards = [
+    {label:'Products Forecasted', value:total, sub:`Across ${CATEGORIES.length} categories`, icon:ic.box, color:'var(--primary)', bg:'var(--primary-50)'},
+    {label:'Items Requiring Reorder', value:needReorder, sub:`${Math.round(needReorder/total*100)}% of catalog`, icon:ic.po, color:'var(--warning)', bg:'var(--warning-soft)'},
+    {label:'Critical Stock', value:critical, sub:'Below safety stock', icon:ic.bolt, color:'var(--danger)', bg:'var(--danger-soft)'},
+    {label:'Inventory Coverage', value:coverageDays+'d', sub:'Avg. days of stock left', icon:ic.history, color:'var(--info)', bg:'var(--info-soft)'},
+    {label:'Purchase Value', value:moneyShort(purchaseValue), sub:'Recommended orders', icon:ic.cart, color:'var(--success)', bg:'var(--success-soft)'},
+    {label:'Upcoming Shortages', value:upcomingShort, sub:`Within ${period} days`, icon:ic.truck, color:'var(--purple)', bg:'var(--purple-soft)'},
+  ];
+  document.getElementById('fcSummaryGrid').innerHTML = cards.map(c=>`
+    <div class="summary-card">
+      <div class="s-top"><span class="s-label">${c.label}</span><span class="s-icon" style="background:${c.bg};color:${c.color}">${c.icon}</span></div>
+      <div class="s-value">${c.value}</div>
+      <div class="s-sub">${c.sub}</div>
+    </div>
+  `).join('');
+}
+
+function renderForecast(){
+  renderFcSummary();
+  renderFcHead();
+  renderFcBody();
+}
+
+document.getElementById('fcPeriodSeg').addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  state.fc.period = +btn.dataset.period;
+  document.querySelectorAll('#fcPeriodSeg button').forEach(b=>b.classList.toggle('active', b===btn));
+  renderForecast();
+});
+document.getElementById('fcSearch').addEventListener('input', e=>{ state.fc.search=e.target.value; renderFcBody(); });
+document.getElementById('fcSupplier').addEventListener('change', e=>{ state.fc.supplier=e.target.value; renderFcBody(); });
+document.getElementById('fcSite').addEventListener('change', e=>{ state.fc.site=e.target.value; renderFcBody(); });
+document.getElementById('fcCategory').addEventListener('change', e=>{ state.fc.category=e.target.value; renderFcBody(); });
+document.getElementById('fcExportBtn').addEventListener('click', ()=> toast('Exporting forecast report to CSV…'));
+
+/* ============================================================
+   CARD VIEW
+============================================================ */
+function getCardFiltered(){
+  const f = state.card;
+  let list = products.filter(p=>{
+    if(f.search && !(p.name.toLowerCase().includes(f.search.toLowerCase()) || p.sku.toLowerCase().includes(f.search.toLowerCase()))) return false;
+    if(f.category && p.category!==f.category) return false;
+    if(f.site && String(p.site)!==f.site) return false;
+    if(f.status && p.status!==f.status) return false;
+    return true;
+  });
+  const [key,dir] = f.sort.split('-');
+  list.sort((a,b)=>{
+    let av = key==='name'?a.name.toLowerCase():(key==='stock'?a.available:a.price);
+    let bv = key==='name'?b.name.toLowerCase():(key==='stock'?b.available:b.price);
+    if(av<bv) return dir==='asc'?-1:1; if(av>bv) return dir==='asc'?1:-1; return 0;
+  });
+  return list;
+}
+
+function renderCards(){
+  const grid = document.getElementById('cardGrid');
+  grid.className = 'card-grid' + (state.card.density==='compact' ? ' compact' : '');
+  const items = getCardFiltered();
+  if(items.length===0){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">${ic.inbox}<h3>No products found</h3><p>Try adjusting your search or filters.</p></div>`;
+    return;
+  }
+  grid.innerHTML = items.map(p=>{
+    const inCart = state.card.cart.has(p.id);
+    return `
+    <div class="p-card ${inCart?'selected':''}" data-card="${p.id}">
+      <div class="p-thumb" style="background:linear-gradient(135deg, ${CAT_COLOR[p.category]}, ${shade(CAT_COLOR[p.category])})">
+        <span class="p-status-dot"><span class="dot" style="background:${statusDotColor(p.status)}"></span>${p.status}</span>
+        <div class="p-select-check ${inCart?'on':''}" data-cart="${p.id}">${inCart?ic.check:''}</div>
+        ${CAT_ICON[p.category]}
+      </div>
+      <div class="p-body">
+        <div class="p-cat">${p.category}</div>
+        <div class="p-name">${p.name}</div>
+        <div class="p-sku">${p.sku}</div>
+        <div class="p-meta"><span>Site ${p.site}</span><span class="stock-val">${p.available.toLocaleString()} in stock</span></div>
+        <div class="p-foot">
+          <span class="p-price">${money(p.price)}</span>
+          <button class="p-add-btn ${inCart?'added':''}" data-cart="${p.id}">
+            ${inCart? ic.check+' Added' : '<svg width="13" height="13" viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.2\'><path d=\'M12 5v14M5 12h14\'/></svg> Add to Cart'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('[data-cart]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      const id = +el.dataset.cart;
+      state.card.cart.has(id) ? state.card.cart.delete(id) : state.card.cart.add(id);
+      renderCards(); updateCartUI();
+    });
+  });
+}
+function shade(hex){ return hex+'CC'; }
+function statusDotColor(status){
+  return {'Healthy':'#15803D','Low Stock':'#B45309','Out of Stock':'#C22A2A','Reserved':'#6D28D9','In Transit':'#0E7490'}[status];
+}
+
+function updateCartUI(){
+  const n = state.card.cart.size;
+  document.getElementById('cartBadge').textContent = n;
+  document.getElementById('cartBtn').classList.toggle('has-items', n>0);
+  const total = [...state.card.cart].reduce((a,id)=> a + products.find(p=>p.id===id).price, 0);
+  document.getElementById('cfCount').textContent = n;
+  document.getElementById('cfTotal').textContent = moneyShort(total);
+  document.getElementById('cartFloater').classList.toggle('show', n>0);
+}
+
+document.getElementById('cardSearch').addEventListener('input', e=>{ state.card.search=e.target.value; renderCards(); });
+document.getElementById('cardCategory').addEventListener('change', e=>{ state.card.category=e.target.value; renderCards(); });
+document.getElementById('cardSite').addEventListener('change', e=>{ state.card.site=e.target.value; renderCards(); });
+document.getElementById('cardStatus').addEventListener('change', e=>{ state.card.status=e.target.value; renderCards(); });
+document.getElementById('cardSort').addEventListener('change', e=>{ state.card.sort=e.target.value; renderCards(); });
+document.getElementById('densitySeg').addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  state.card.density = btn.dataset.density;
+  document.querySelectorAll('#densitySeg button').forEach(b=>b.classList.toggle('active', b===btn));
+  renderCards();
+});
+document.getElementById('cartBtn').addEventListener('click', ()=>{
+  if(state.card.cart.size===0){ toast('Your cart is empty. Add products to create an order.'); return; }
+  document.getElementById('cartFloater').scrollIntoView({behavior:'smooth', block:'center'});
+});
+document.getElementById('cfClear').addEventListener('click', ()=>{ state.card.cart.clear(); renderCards(); updateCartUI(); });
+document.getElementById('cfCreate').addEventListener('click', ()=>{
+  toast(`Purchase order created with ${state.card.cart.size} item(s).`);
+  state.card.cart.clear(); renderCards(); updateCartUI();
+});
+
+/* ============================================================
+   TOAST
+============================================================ */
+function toast(msg){
+  let t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed; top:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:10px 18px; border-radius:9px; font-size:12.5px; font-weight:600; z-index:100; box-shadow:var(--shadow-lg);
+    opacity:0; transition:opacity .2s;`;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=> t.style.opacity='1');
+  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),200); }, 2200);
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+renderInvHead();
+renderInvBody();
+</script>
+</body>
+</html>
